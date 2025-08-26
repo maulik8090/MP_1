@@ -1,0 +1,28 @@
+questions:
+id: q1
+   stage: quality_control_filtering
+   text: "Provide the number of cells present after filtering matrix of sample2?"
+   answer_1: 12219
+
+([1] "Number of unfiltered cells: 2832104", "Number of filtered cells: 12219")
+
+id: q2
+   stage: quality_control_filtering
+   text: "Provide the number of mitochondrial contamination present in sample2?"
+   answer_2: 0%
+
+id: q3
+   stage: Data Processing
+   text: "Provide the number of median nCount_RNA and nFeature_RNA in sample2"
+   answer_3: nCount_RNA: 5152, nFeature_RNA:2485
+
+
+id: q4
+   stage: Data Processing
+   text: "Provide the number of clusters present in the sample2, with dims = 30, resolution = 0.3 "
+   answer_4: 18 
+
+id: q5
+   stage: Data Processing
+   text: "Provide the number of cells  remained present in sample2 after doublet removal?"
+   answer_5: 11303

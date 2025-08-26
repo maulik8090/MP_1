@@ -1,0 +1,82 @@
+# Load required libraries
+library(Seurat)
+library(dplyr)
+library(Matrix)
+library(DoubletFinder)
+# Step 1: Read the filtered .h5 file
+data <- Read10X_h5("Sampl2_filtered_feature_bc_matrix.h5")
+
+# Step 2: Create Seurat object
+seurat_obj <- CreateSeuratObject(counts = data, project = "snRNAseq", min.cells = 3, min.features = 200)
+
+# Step 3: Add mitochondrial percentage (optional for QC)
+seurat_obj[["percent.mt"]] <- PercentageFeatureSet(seurat_obj, pattern = "^MT-")
+
+# Step 4: Visualize QC metrics
+VlnPlot(seurat_obj, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+
+# Step 5: Filter cells based on QC thresholds
+seurat_obj <- subset(seurat_obj, subset = nFeature_RNA > 500 & nFeature_RNA < 6000 & percent.mt < 5)
+
+# Step 6: Normalize the data
+seurat_obj <- NormalizeData(seurat_obj)
+
+# Step 7: Identify highly variable features
+seurat_obj <- FindVariableFeatures(seurat_obj, selection.method = "vst", nfeatures = 2000)
+
+# Step 8: Scale the data
+seurat_obj <- ScaleData(seurat_obj)
+
+# Step 9: Perform PCA
+seurat_obj <- RunPCA(seurat_obj, features = VariableFeatures(object = seurat_obj))
+
+# Step 10: Cluster the cells
+seurat_obj <- FindNeighbors(seurat_obj, dims = 1:30)
+seurat_obj <- FindClusters(seurat_obj, resolution = 0.3)
+
+# Step 11: Run UMAP for visualization
+seurat_obj <- RunUMAP(seurat_obj, dims = 1:30)
+
+# Step 12: Plot UMAP
+DimPlot(seurat_obj, reduction = "umap", label = TRUE)
+
+# Assuming you already have a processed Seurat object called `seurat_obj`
+# and you've run normalization, PCA, and clustering
+
+# Step 13: Estimate the number of expected doublets
+ nExp <- round(0.075 * ncol(seurat_obj))  # ~7.5% doublet rate (adjust as needed)
+ nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
+ 
+ # Step 14: Parameter sweep to find optimal pK
+ sweep.res.list <- paramSweep(seurat_obj, PCs = 1:30, sct = FALSE)
+ sweep.stats <- summarizeSweep(sweep.res.list, GT = FALSE)
+ best.pK <- as.numeric(as.character(find.pK(sweep.stats)$pK))
+ 
+
+ # Step 15: Run DoubletFinder
+ seurat_obj <- doubletFinder(
+   seurat_obj,
+   PCs = 1:30,
+   pN = 0.25,
+   pK = best.pK,
+   nExp = nExp,
+   reuse.pANN = FALSE,
+   sct = FALSE
+ )
+ 
+ # Step 16: Check classification and filter singlets
+ classification_col <- grep("DF.classifications", colnames(seurat_obj@meta.data), value = TRUE)
+ table(seurat_obj@meta.data[[classification_col]])
+ 
+ # Step 17: Subset to singlets
+ seurat_obj_clean <- subset(seurat_obj, subset = seurat_obj@meta.data[[classification_col]] == "Singlet")
+ 
+
+# Step 18:Number of cells before doublet removal
+n_before <- ncol(seurat_obj)
+print(paste("Cells before doublet removal:", n_before))
+
+# Step 19:Number of cells classified as singlets
+n_after <- sum(seurat_obj$DF.classifications_0.25_0.09_nExp == "Singlet")
+print(paste("Cells after doublet removal:", n_after))
+
